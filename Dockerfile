@@ -69,6 +69,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         libgbm1 \
         libpango-1.0-0 \
         libcairo2 \
+        # Utilities & FUSE
+        libfuse2 \
+        xterm \
         # Fonts
         fonts-dejavu-core \
         fonts-noto-color-emoji \
@@ -95,6 +98,6 @@ RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 # 5. Make noVNC auto-connect by default when loading root URL
 RUN echo '<!DOCTYPE html><html><head><meta http-equiv="refresh" content="0; url=vnc.html?autoconnect=true&resize=scale"></head><body>Redirecting to Fincept Terminal...</body></html>' > /usr/share/novnc/index.html
 
-EXPOSE 8080 5900
+EXPOSE 80 8080 5900
 
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]

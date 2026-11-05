@@ -35,30 +35,44 @@ else
     x11vnc -display :1 -rfbport 5900 -nopw -shared -forever -bg -nopw_warning
 fi
 
-# 4. Start Websockify + noVNC (HTML5 Web Bridge)
-echo "[4/5] Starting noVNC web interface on port 8080..."
+# 4. Start Websockify on both port 80 AND port 8080 (ensures Coolify / Traefik always finds it)
+echo "[4/5] Starting noVNC web interface on ports 80 and 8080..."
+websockify --web=/usr/share/novnc 80 localhost:5900 &
 websockify --web=/usr/share/novnc 8080 localhost:5900 &
-WEBSOCKIFY_PID=$!
 sleep 1
 
 # 5. Launch Fincept Terminal
 echo "[5/5] Launching Fincept Terminal..."
 cd /opt/fincept/squashfs-root
 
-if [ -f "./AppRun" ]; then
-    ./AppRun "$@" &
-    APP_PID=$!
-elif [ -f "./usr/bin/FinceptTerminal" ]; then
-    ./usr/bin/FinceptTerminal "$@" &
-    APP_PID=$!
-else
-    echo "ERROR: FinceptTerminal binary not found!"
-    exit 1
-fi
+launch_fincept() {
+    if [ -f "./AppRun" ]; then
+        ./AppRun "$@" &
+        APP_PID=$!
+    elif [ -f "./usr/bin/FinceptTerminal" ]; then
+        ./usr/bin/FinceptTerminal "$@" &
+        APP_PID=$!
+    else
+        echo "ERROR: FinceptTerminal binary not found in /opt/fincept/squashfs-root"
+        # Keep openbox and xterm alive so user can debug via browser
+        xterm &
+        APP_PID=$!
+    fi
+}
+
+launch_fincept "$@"
 
 echo "=================================================="
-echo " Fincept Terminal is ready! Access via HTTP 8080  "
+echo " Fincept Terminal is ready! Access via HTTP       "
+echo " Ports active: 80 and 8080                        "
 echo "=================================================="
 
-# Monitor and keep container alive
-wait -n $XVFB_PID $WEBSOCKIFY_PID $APP_PID
+# Keep container alive and supervise FinceptTerminal
+while true; do
+    if ! kill -0 $APP_PID 2>/dev/null; then
+        echo "[Supervisor] Fincept Terminal exited. Restarting in 3 seconds..."
+        sleep 3
+        launch_fincept "$@"
+    fi
+    sleep 5
+done
