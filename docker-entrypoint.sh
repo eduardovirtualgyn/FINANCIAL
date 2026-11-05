@@ -10,7 +10,9 @@ export DISPLAY=:1
 export QT_QPA_PLATFORM=xcb
 export QTWEBENGINE_DISABLE_SANDBOX=1
 
-# Clean up stale locks from previous container runs
+# Ensure /tmp/.X11-unix exists with correct permissions
+mkdir -p /tmp/.X11-unix
+chmod 1777 /tmp/.X11-unix
 rm -f /tmp/.X1-lock /tmp/.X11-unix/X1 2>/dev/null || true
 
 # 1. Start Xvfb (Virtual Framebuffer)
@@ -22,6 +24,7 @@ sleep 2
 
 # 2. Start Openbox (Lightweight Window Manager)
 echo "[2/5] Starting Openbox window manager..."
+mkdir -p /root/.config/openbox
 openbox &
 sleep 1
 
@@ -30,16 +33,17 @@ echo "[3/5] Starting x11vnc server on port 5900..."
 if [ -n "$VNC_PASSWORD" ]; then
     mkdir -p /root/.vnc
     x11vnc -storepasswd "$VNC_PASSWORD" /root/.vnc/passwd
-    x11vnc -display :1 -rfbport 5900 -rfbauth /root/.vnc/passwd -shared -forever -bg -nopw_warning
+    x11vnc -display :1 -rfbport 5900 -rfbauth /root/.vnc/passwd -shared -forever &
 else
-    x11vnc -display :1 -rfbport 5900 -nopw -shared -forever -bg -nopw_warning
+    x11vnc -display :1 -rfbport 5900 -nopw -shared -forever &
 fi
+sleep 2
 
 # 4. Start Websockify on both port 80 AND port 8080 (ensures Coolify / Traefik always finds it)
 echo "[4/5] Starting noVNC web interface on ports 80 and 8080..."
 websockify --web=/usr/share/novnc 80 localhost:5900 &
 websockify --web=/usr/share/novnc 8080 localhost:5900 &
-sleep 1
+sleep 2
 
 # 5. Launch Fincept Terminal
 echo "[5/5] Launching Fincept Terminal..."
@@ -47,14 +51,18 @@ cd /opt/fincept/squashfs-root
 
 launch_fincept() {
     if [ -f "./AppRun" ]; then
+        chmod +x ./AppRun
+        echo "Executing ./AppRun..."
         ./AppRun "$@" &
         APP_PID=$!
     elif [ -f "./usr/bin/FinceptTerminal" ]; then
+        chmod +x ./usr/bin/FinceptTerminal
+        echo "Executing ./usr/bin/FinceptTerminal..."
         ./usr/bin/FinceptTerminal "$@" &
         APP_PID=$!
     else
         echo "ERROR: FinceptTerminal binary not found in /opt/fincept/squashfs-root"
-        # Keep openbox and xterm alive so user can debug via browser
+        echo "Spawning xterm fallback..."
         xterm &
         APP_PID=$!
     fi
