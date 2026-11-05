@@ -5,10 +5,13 @@ echo "=================================================="
 echo " Starting Fincept Terminal Web Edition (Coolify)  "
 echo "=================================================="
 
-# Export display and sandbox flags
+# Export display, scaling and sandbox flags
 export DISPLAY=:1
 export QT_QPA_PLATFORM=xcb
 export QTWEBENGINE_DISABLE_SANDBOX=1
+export QT_ENABLE_HIGHDPI_SCALING=1
+export QT_SCALE_FACTOR="${QT_SCALE_FACTOR:-1.25}"
+export QT_FONT_DPI="${QT_FONT_DPI:-110}"
 
 # Ensure /tmp/.X11-unix exists with correct permissions
 mkdir -p /tmp/.X11-unix
